@@ -16,7 +16,7 @@
 #include "Dsp_Window.h"
 #include "Experience.h"
 #include "Instrument_Window.h"
-#include "menu_bar.h"
+#include "Menu_Bar.h"
 #include "gui/Window.h"
 
 typedef Uint32 SDL_WindowID_Type;
@@ -29,8 +29,6 @@ public:
   void run();
   void handle_events();
 
-  static const int NUM_WINDOWS = 1;
-
   //
   //Options_Window *options_window;
   Menu_Bar menu_bar;
@@ -42,7 +40,12 @@ public:
   //
   //std::map<SDL_WindowID_Type, Window *> window_map;
   Experience *sub_window_experience = NULL;
-  Window *window_map[NUM_WINDOWS+1];
+  
   Options_Window options_window;
+  Spc_Export_Window spc_export_window;
+  static const int NUM_WINDOWS = 2;
+  Window *window_map[NUM_WINDOWS+1];
+
+  Cursors cursors;
 };
 

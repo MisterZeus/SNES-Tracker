@@ -39,6 +39,9 @@ Instrument_Window * BaseD::instr_window=NULL;
 Dsp_Window * BaseD::dsp_window=NULL;
 Menu_Bar * BaseD::menu_bar=NULL;
 Options_Window * BaseD::options_window=NULL;
+Spc_Export_Window * BaseD::spc_export_window=NULL;
+
+Cursors * BaseD::cursors=NULL;
 
 const char * BaseD::path=NULL;
 Voice_Control BaseD::voice_control;
@@ -188,12 +191,43 @@ int BaseD::Clickable::dec_tempo(void *nada)
   return 0;
 }
 
+#ifdef _WIN32
+#define UNRAR_TOOLNAME "unrar.exe"
+#define DEC7Z_TOOLNAME "7zDec.exe"
+#else
+#define UNRAR_TOOLNAME "unrar"
+#define DEC7Z_TOOLNAME "7zDec"
+#endif
+
+namespace fs = ::boost::filesystem;
+// return the filenames of all files that have the specified extension
+// in the specified directory and all subdirectories
+void get_file_list_ext(const fs::path& root, const std::string& ext, std::vector<fs::path>& ret)
+{
+    if(!fs::exists(root) || !fs::is_directory(root)) return;
+
+    DEBUGLOG("!@#!@# ");
+    fs::recursive_directory_iterator it(root);
+    fs::recursive_directory_iterator endit;
+
+    while(it != endit)
+    {
+        if(fs::is_regular_file(*it) && it->path().extension() == ext)
+        {
+          ret.push_back(it->path().filename());
+          std::cout << it->path().filename();
+        }
+        ++it;
+    }
+
+}
+
 void BaseD::check_paths_and_reload(char **paths/*=g_cfg.playlist*/, 
   int numpaths/*=g_cfg.num_files*/, bool is_drop_event/*=false*/)
 {
   struct
   {
-    std::string cmd[2] = {"unrar\" e -y \"", "7zDec\" e \""};
+    std::string cmd[2] = { UNRAR_TOOLNAME "\" e -y \"", DEC7Z_TOOLNAME "\" e \""};
     unsigned index=0;
     const char * str() { return cmd[index].c_str(); }
   } extract_cmd;
@@ -206,11 +240,10 @@ void BaseD::check_paths_and_reload(char **paths/*=g_cfg.playlist*/,
     char *ext;
     char *name;
     ext = strrchr(path, '.');
-#ifdef WIN32
-name = strrchr(path, '\\'); // Windows might need backslash check
-#else
-name = strrchr(path, '/'); // Windows might need backslash check
-#endif
+
+    name = strrchr(path, '\\'); // Windows
+    if (!name)
+      name = strrchr( path, '/' ); // UNIX
   //assert(name);
     if (!name)
       name = path;
@@ -224,30 +257,35 @@ name = strrchr(path, '/'); // Windows might need backslash check
       rsn_found = true; // not actually used
       fprintf(stderr, "rsn || 7z found\n");
       char *mkdir_cmd = (char*) SDL_malloc(sizeof(char) * 
-        (strlen("mkdir -p ")+
-          strlen(File_System_Context::file_system->tmp_path_quoted)+((ext-name+1)+1)) );
+        (strlen(MKDIR_CMD)+
+          strlen(File_System_Context::file_system->tmp_path_quoted)+((ext-name+1)+1+5)) );
 
       char *dir_quoted = (char*) SDL_malloc(sizeof(char) * 
-        (strlen(File_System_Context::file_system->tmp_path_quoted)+((ext-name+1)+2)) );
+        (strlen(File_System_Context::file_system->tmp_path_quoted)+((ext-name+1)+2+5)) );
 
-      strcpy(mkdir_cmd, "mkdir ");
-      char *dirp = mkdir_cmd + 6;
-      char *p = mkdir_cmd + 6;
-      strcpy(p, File_System_Context::file_system->tmp_path_quoted);
-      p += strlen(File_System_Context::file_system->tmp_path_quoted) - 1;
+      strcpy(mkdir_cmd, MKDIR_CMD);
+      char *dirp = mkdir_cmd + strlen(MKDIR_CMD);
+      char *sp = mkdir_cmd + strlen(MKDIR_CMD);
+      strcpy(sp, File_System_Context::file_system->tmp_path_quoted);
+      sp += strlen(File_System_Context::file_system->tmp_path_quoted) - 1;
       // folderp is the game folder inside the tmp dir
       for (char *folderp = name; folderp != ext; folderp++)
       {
-        *(p++) = *folderp;
+        *(sp++) = *folderp;
       }
 
-      *(p++) = '/';
-      *(p++) = '"';
-      *p = 0;
+      *(sp++) = PATH_SEP;
+      *(sp++) = '"';
+      *sp = 0;
       strcpy (dir_quoted, dirp);
       //strcat(dir_quoted, "/");
+      fprintf(stderr, "data_path_quoted = '%s'\n", File_System_Context::file_system->data_path_quoted);
+      fprintf(stderr, "tmp_path_quoted = '%s'\n", File_System_Context::file_system->tmp_path_quoted);
       fprintf(stderr, "mkdircmd = '%s'\n", mkdir_cmd);
       fprintf(stderr, "dir = %s\n", dir_quoted);
+#ifdef _WIN32
+      fflush(NULL);
+#endif
       system(mkdir_cmd);
 
       if (!strcmp(ext, ".rsn") || !strcmp(ext, ".rar"))
@@ -263,15 +301,26 @@ name = strrchr(path, '/'); // Windows might need backslash check
       char *full_extract_cmd = (char*) SDL_malloc(sizeof(char) * 
         (
           strlen(File_System_Context::file_system->data_path_quoted) +
-          strlen(extract_cmd.str()) + 3 + strlen(path) + 2 + strlen(dir_quoted) + 1
+          strlen(extract_cmd.str()) + 3 + strlen(path) + 2 + strlen(dir_quoted) + 1 +10
         ));
+#ifdef _WIN32
+      full_extract_cmd[0] = '"';
+      strcpy(full_extract_cmd + 1, File_System_Context::file_system->data_path_quoted);
+#else
       strcpy(full_extract_cmd, File_System_Context::file_system->data_path_quoted);
+#endif
       full_extract_cmd[strlen(full_extract_cmd)-1] = 0;
       strcat(full_extract_cmd, extract_cmd.str());
       strcat(full_extract_cmd, path);
       strcat(full_extract_cmd, "\" ");
       strcat(full_extract_cmd, dir_quoted);
-      fprintf(stderr, "full_extract_cmd = %s\n", full_extract_cmd);
+      // int i = strlen(full_extract_cmd);
+      // full_extract_cmd[i++] = '"';
+      // full_extract_cmd[i++] = 0;
+      fprintf(stderr, "full_extract_cmd = '%s'\n", full_extract_cmd);
+#ifdef _WIN32
+      fflush(NULL);
+#endif
       system(full_extract_cmd);
       SDL_free(full_extract_cmd);    
 
@@ -279,74 +328,44 @@ name = strrchr(path, '/'); // Windows might need backslash check
       int status;
       char spc_path[PATH_MAX];
 
-      char *ls_cmd = (char*) SDL_malloc ( sizeof(char) * (strlen("ls ")+strlen(dir_quoted)+strlen("*.spc")+1));
-      strcpy(ls_cmd, "ls ");
-      strcat(ls_cmd, dir_quoted);
-      //ls_cmd[strlen(ls_cmd)-1] = 0;
-      strcat(ls_cmd, "*.spc");
-      fprintf(stderr, "ls_cmd = %s\n", ls_cmd);
-      fp = popen(ls_cmd, "r");
-      if (fp == NULL)
-          /* Handle error */
-      {
-
-      }
-
       //int count=0;
       int old_nfd_rsn_spc_path_pos=BaseD::nfd.num_rsn_spc_paths;
-      while (fgets(spc_path, PATH_MAX, fp) != NULL)
-      {
-        BaseD::nfd.num_rsn_spc_paths++;
-      }
+      // count how many paths!!
+      // ls *.spc
+      char *dir_unquoted = &dir_quoted[1];
+      dir_quoted[strlen(dir_quoted)-1] = 0;
 
-      //rewind(fp);
-      status = pclose(fp);
-      if (status == -1) {
-          /* Error reported by pclose() */
-          //...
-      } else {
-          /* Use macros described under wait() to inspect `status' in order
-             to determine success/failure of command executed by popen() */
-          //...
-      }
-      fp = popen(ls_cmd, "r");
-      if (fp == NULL)
-          /* Handle error */
-      {
+      typedef std::vector<boost::filesystem::path> vec;
+      vec v;
+      boost::filesystem::path p(dir_unquoted);
+      get_file_list_ext(p, ".spc", v);
+      sort(v.begin(), v.end());             // sort, since directory iteration
+                                            // is not ordered on some file systems
 
-      }
+    
+      BaseD::nfd.num_rsn_spc_paths += v.size();
 
-      BaseD::nfd.rsn_spc_paths=(char**)SDL_realloc(BaseD::nfd.rsn_spc_paths, 
+      BaseD::nfd.rsn_spc_paths=(char**)SDL_realloc(
+        BaseD::nfd.rsn_spc_paths, 
         sizeof(char*) * (BaseD::nfd.num_rsn_spc_paths+1));
+
       if (BaseD::nfd.rsn_spc_paths == NULL)
       {
         perror ("realloc");
         break;
       }
 
-      while (fgets(spc_path, PATH_MAX, fp) != NULL)
+      for (vec::const_iterator it(v.begin()), it_end(v.end()); it != it_end; ++it)
       {
-        // erase newline
-        spc_path[strlen(spc_path)-1] = 0;
-        
-        // 3 because 0, '"', '"' IIRC
-        BaseD::nfd.rsn_spc_paths[old_nfd_rsn_spc_path_pos] = (char*) SDL_calloc(strlen(spc_path)+3, sizeof(char));
-        strcpy(BaseD::nfd.rsn_spc_paths[old_nfd_rsn_spc_path_pos], spc_path);
-        
+        std::cout << "woot" << std::endl;
+        std::string spc_path = dir_unquoted + it->string();
+        BaseD::nfd.rsn_spc_paths[old_nfd_rsn_spc_path_pos] = (char*) SDL_calloc(spc_path.length()+3, sizeof(char));
+        strcpy(BaseD::nfd.rsn_spc_paths[old_nfd_rsn_spc_path_pos], spc_path.c_str());
         old_nfd_rsn_spc_path_pos++; 
       }
 
 
-      status = pclose(fp);
-      if (status == -1) {
-          /* Error reported by pclose() */
-          //...
-      } else {
-          /* Use macros described under wait() to inspect `status' in order
-             to determine success/failure of command executed by popen() */
-          //...
-      }
-      SDL_free(ls_cmd);
+      //SDL_free(ls_cmd);
       SDL_free(mkdir_cmd);
       SDL_free(dir_quoted);
     }
@@ -561,7 +580,7 @@ void BaseD::reload(char **paths/*=NULL*/, int numpaths/*=0*/)
   DEBUGLOG("g_cur_entry = %d", g_cur_entry);
   DEBUGLOG("g_cfg.playlist[g_cur_entry] = %s\n", g_cfg.playlist[g_cur_entry]);
 
-#ifdef WIN32
+#ifdef _WIN32
   g_real_filename = strrchr(path, '\\');
 #else
   g_real_filename = strrchr(path, '/');
@@ -822,7 +841,8 @@ void BaseD::write_mask(unsigned char packed_mask[32])
   unsigned char tmp;
   int i;
   strncpy(filename, g_cfg.playlist[g_cur_entry], 1024);
-#ifdef WIN32
+#ifdef _
+  WIN32
   sep = strrchr(filename, '\\');
 #else
   sep = strrchr(filename, '/');

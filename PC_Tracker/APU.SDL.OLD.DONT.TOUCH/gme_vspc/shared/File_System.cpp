@@ -13,8 +13,8 @@ void error( const char* str )
 
 File_System::File_System()
 {
-  init();
   File_System_Context::file_system = this;
+  //this->init();
 }
 File_System::~File_System()
 {
@@ -29,32 +29,21 @@ File_System::~File_System()
     SDL_free(data_path_quoted);
   if (tmp_path)
   {
-#ifdef WIN32
-    #define RM_CMD "rmdir \""
-    #define RM_PARM " /s /q"
-    char *rm_cmd = (char*)SDL_malloc(sizeof(char) * (strlen(RM_CMD)+strlen(RM_PARM)+strlen(tmp_path)+2));
-    strcpy (rm_cmd, RM_CMD);
-    strcat (rm_cmd, tmp_path);
-    strcat (rm_cmd, "\"");
-    strcat (rm_cmd, RM_PARM);
-    system(rm_cmd);
-#else
-    #define RM_CMD "rm -rf \""
-    char *rm_cmd = (char*)SDL_malloc(sizeof(char) * (strlen(RM_CMD)+strlen(tmp_path)+2));
-    strcpy (rm_cmd, RM_CMD);
-    strcat (rm_cmd, tmp_path);
-    strcat (rm_cmd, "\"");
-    printf("rm_cmd = %s\n", rm_cmd);
-    system(rm_cmd);
-#endif
-    #undef RM_CMD
-    #undef RM_PARM
-
-    SDL_free(rm_cmd);
     SDL_free(tmp_path);
   }
   if (tmp_path_quoted)
+  {
+    char *rm_cmd = (char*)SDL_malloc(sizeof(char) * (strlen(RM_CMD)+strlen(tmp_path_quoted)+2));
+    strcpy (rm_cmd, RM_CMD);
+    strcat (rm_cmd, tmp_path_quoted);
+    printf("rm_cmd = %s\n", rm_cmd);
+    system(rm_cmd);
+    //#undef RM_CMD
+    //#undef RM_PARM
+
+    SDL_free(rm_cmd);
     SDL_free(tmp_path_quoted);
+  }
 }
 int File_System::init()
 {
@@ -99,25 +88,27 @@ int File_System::init()
   SDL_free(a);
   if (pref_pathp)
   {
-      //pref_path = SDL_strdup(pref_pathp);
     pref_path = pref_pathp;
-    tmp_path = (char*)SDL_malloc(sizeof(char) * (strlen(pref_path)+strlen("tmp/")+1) );
-    tmp_path_quoted = (char*)SDL_malloc(sizeof(char) * (strlen(pref_path)+strlen("\"tmp/\"")+1) );
+    tmp_path = (char*)SDL_malloc(sizeof(char) * (strlen(pref_path)+strlen("tmp/")+5) );
+    tmp_path_quoted = (char*)SDL_malloc(sizeof(char) * (strlen(pref_path)+strlen("\"tmp/\"")+1+5) );
     strcpy(tmp_path, pref_path);
     char *p = tmp_path + strlen(pref_path);
-    strcpy(p, "tmp/");
+    strcpy(p, "tmp");
+    p[3] = PATH_SEP;
+    p[4] = 0;
     fprintf(stderr, "tmppath = %s\n", tmp_path);
     strcpy (tmp_path_quoted, "\"");
     strcat (tmp_path_quoted, tmp_path);
     strcat (tmp_path_quoted, "\"");
     fprintf (stderr, "tmp_path_quoted = %s\n", tmp_path_quoted);
-    char *mkdir_cmd = (char*)SDL_malloc(sizeof(char) * (strlen("mkdir -p \"")+strlen(tmp_path)+2) );
-    strcpy (mkdir_cmd, "mkdir -p \"");
-    strcat (mkdir_cmd, tmp_path);
-    strcat (mkdir_cmd, "\"");
+
+    char *mkdir_cmd = (char*)SDL_malloc(sizeof(char) * (strlen(MKDIR_CMD)+strlen(tmp_path_quoted)+2+ 5) );
+    strcpy (mkdir_cmd, MKDIR_CMD);
+    strcat (mkdir_cmd, tmp_path_quoted);
     fprintf (stderr, "mkdir_cmd = %s\n", mkdir_cmd);
     system(mkdir_cmd);
     SDL_free(mkdir_cmd);
+//    #undef MKDIR_CMD
     is_writing_enabled=true;
   } 
   else 

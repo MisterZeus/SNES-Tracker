@@ -5,6 +5,7 @@
 #include "Instrument_Window.h"
 //#include <stdlib.h>
 #include "Options_Window.h"
+#include "gui/Spc_Export_Window.h"
 
 #include "gme/Wave_Writer.h"
 
@@ -44,8 +45,9 @@ void Menu_Bar::Tabs::draw()
 int Menu_Bar::Edit_Context::open_options_window(void *data)
 {
   DEBUGLOG("open_options_window()\n");
-  BaseD::options_window->raise();
+  //
   BaseD::options_window->show();
+  BaseD::options_window->raise();
   //BaseD::options_window->raise();
   // there's a problem raising the window immediately after showing it... 
   // So I raise it in the event loop when the window focus change event happens
@@ -102,12 +104,20 @@ void Menu_Bar::Track_Context::draw(SDL_Surface *screen)
 int Menu_Bar::File_Context::open_spc(void *data)
 {
   BaseD::player->pause(1,true,false);
-  if (BaseD::nfd.get_multifile_read_path("spc;rsn;rar;7z") == NFD_OKAY)
+  if (BaseD::nfd.get_multifile_read_path("spc,rsn,rar,7z") == NFD_OKAY)
   {
     DEBUGLOG("check_paths_and_reload\n");
     BaseD::check_paths_and_reload(BaseD::nfd.paths, BaseD::nfd.numpaths);
   }
   BaseD::player->pause(0);
+  return 0;
+}
+
+int Menu_Bar::File_Context::export_spc(void *data)
+{
+  //BaseD::spc_export_window->init();
+  BaseD::spc_export_window->show();
+  
   return 0;
 }
 
@@ -132,7 +142,7 @@ int Menu_Bar::File_Context::export_wav(void *data)
     wave_enable_stereo();
 
     BaseD::player->exporting = true;
-    BaseD::reload();
+    //BaseD::reload();
     BaseD::player->pause(0, false, false);
 
     while ( (BaseD::player->emu()->tell()/1000) < BaseD::song_time )

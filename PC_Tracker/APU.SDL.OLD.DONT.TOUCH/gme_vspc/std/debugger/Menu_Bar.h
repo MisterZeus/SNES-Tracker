@@ -5,6 +5,7 @@
 #include "gui/Expanding_List.h"
 #include "Main_Window.h"
 #include "Options_Window.h"
+#include "gui/Spc_Export_Window.h"
 struct Menu_Bar
 {
   
@@ -27,17 +28,19 @@ struct Menu_Bar
     }
 
     static int open_spc(void *data);
+    static int export_spc(void *data);
     static int export_wav(void *data);
     static int quit(void *data) { BaseD::quitting = true; return 0; }
 
 
     Expanding_List menu;
-    Context_Menu_Item menu_items[5] = 
+    Context_Menu_Item menu_items[6] = 
     {
       {"file",        true,  NULL,  NULL},
       {"open SPC",    true,  open_spc,  NULL},
       //{"close SPC",   true,  NULL,  NULL},
       //{"write mask",  true,  NULL,  NULL},
+      {"export SPC", true, export_spc, NULL},
       {"export WAV", true, export_wav, NULL},
       {"quit",        true,  quit,  NULL},
       {"",            false, NULL,  NULL}
@@ -139,6 +142,12 @@ struct Menu_Bar
     void draw(SDL_Surface *screen);
     void preload(int x, int y);
     void update(Uint8 adsr, Uint8 adsr2);
+    void deactivate_all() {
+      file_context.menu.deactivate();
+      edit_context.menu.deactivate();
+      track_context.menu.deactivate();
+      window_context.menu.deactivate();
+    }
 
     File_Context          file_context;
     Edit_Context          edit_context;

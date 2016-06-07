@@ -352,6 +352,12 @@ int Main_Window::receive_event(SDL_Event &ev)
           //fprintf(stderr, "(%d,%d)\n", ev.motion.x, ev.motion.y);
           voice_control.checkmouse((Uint16&)mouse::x, (Uint16&)mouse::y, SDL_BUTTON_RIGHT); 
         break;
+        case SDLK_UP:
+          BaseD::cursors->next();
+          break;
+        case SDLK_DOWN:
+          BaseD::cursors->prev();
+        break;
         default:break;
       }
 
@@ -526,7 +532,7 @@ int Main_Window::receive_event(SDL_Event &ev)
         else if ( ((scancode >= '0') && (scancode <= '9')) || ((scancode >= 'A') && (scancode <= 'F')) || 
           ((scancode >= 'a') && (scancode <= 'f')) )
         {
-          uint i=0;
+          uint32_t i=0;
           //int addr;
           Uint16 addr = mouseover_hexdump_area.addr_being_edited;
           //fprintf(stderr, "Addr = %04x\n", addr);

@@ -6,6 +6,7 @@
 #include "File_System_Context.h"
 #include "App_Settings_Context.h"
 #include "Audio.h"
+#include "gui/Cursors.h"
 //#include "Tracker/Tracker.h"
 
 class App : public Render_Context, public Player_Context, public Midi_Context, public App_Settings_Context
@@ -21,11 +22,13 @@ public:
   //Tracker tracker;
   App_Settings *app_settings;
   Debugger *debugger;
-  Music_Player player;
+  Music_Player *player;
   
-  File_System file_system;
+  File_System *file_system;
   Midi *midi;
   Audio *audio;
+
+  //Window main_window;
 
 private:
   int init_sdl();

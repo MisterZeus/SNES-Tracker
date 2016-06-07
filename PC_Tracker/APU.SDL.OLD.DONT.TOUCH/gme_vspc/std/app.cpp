@@ -10,14 +10,18 @@ static int create_midi(void *vapp)
   return 0;
 }
 
-App::App(int &argc, char **argv, int samplerate/*=44100*/) : 
-app_settings(new App_Settings(&file_system)),
-audio(new Audio)
+App::App(int &argc, char **argv, int samplerate/*=44100*/)
+//main_window(SCREEN_WIDTH, SCREEN_HEIGHT, APP_NAME_VERSION)
 {
-  
-  Player_Context::player = &player;
+  //Colors::precompute(*main_window->screen);
+  //Render_Context::load_from_window(main_window);
+  file_system = new File_System;
+  app_settings=new App_Settings(file_system);
+  audio=new Audio;
+  player=new Music_Player;
+  Player_Context::player = player;
 
-  handle_error(player.init(samplerate, app_settings->vars.audio_out_dev) );
+  handle_error(player->init(samplerate, app_settings->vars.audio_out_dev) );
   
   //App_Settings_Context::app_settings = &app_settings;
 
@@ -37,7 +41,16 @@ void App::run()
 
 App::~App()
 {
+  DEBUGLOG("~App;");
   delete debugger;
+
+  delete player;
+
+  delete app_settings;
+  delete midi;
+  delete audio;
+
+  delete file_system;
 
   if (screen)
     SDL_FreeSurface(screen);
@@ -47,9 +60,5 @@ App::~App()
     SDL_DestroyRenderer(sdlRenderer);
   if(sdlWindow)
     SDL_DestroyWindow(sdlWindow);
-
-  delete app_settings;
-  delete midi;
-  delete audio;
 }
 
